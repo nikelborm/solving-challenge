@@ -3,8 +3,7 @@
 function transform<
   TInstance extends object,
   TConstructorArgs extends unknown[],
-  const TNamesOfMethodsReturningThisAndWhichCanBeUsedOnlyOnce extends // to distribute the type
-  TAllInstanceKeys extends string
+  const TNamesOfMethodsReturningThisAndWhichCanBeUsedOnlyOnce extends TAllInstanceKeys extends string // to distribute the type
     ? TInstance[TAllInstanceKeys] extends () => TInstance
       ? TAllInstanceKeys
       : never
