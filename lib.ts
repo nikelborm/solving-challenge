@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { color } from "bun" with { type: "macro" };
 
 // can be disable for performance
 const enableSafeGuards = true;
@@ -6,12 +7,15 @@ const enableSafeGuards = true;
 const renderTestNum = (e: any, pad?: { binary?: number; decimal?: number }) =>
   typeof e === "bigint" || typeof e === "number"
     ? ((ending) =>
-        e.toString(10).padStart(pad?.decimal ?? 1, " ") +
+        color("rgb(209, 167, 0)", "ansi") +
+      e.toString(10).padStart(pad?.decimal ?? 1, " ") +
+        color("rgb(251, 227, 133)", "ansi") +
         ending +
+        color("gray", "ansi") +
         ` \\* 0b` +
         e.toString(2).padStart(pad?.binary ?? 1, "0") +
         ending +
-        ` *\\`)(typeof e === "bigint" ? "n" : "")
+        ` *\\`+ color("white", "ansi"))(typeof e === "bigint" ? "n" : "")
     : e;
 
 const testSuite = <TArgs extends Array<any>, TReturn>(
@@ -64,12 +68,16 @@ const testSuite = <TArgs extends Array<any>, TReturn>(
 
     testCases.forEach(([expected, ...args], testCaseIndex) =>
       test(
-        func.name +
+        color("rgb(0, 140, 153)", "ansi") +
+          func.name +
+          color("white", "ansi") +
           `(` +
           args
             .map((e, index) => renderTestNum(e, formattingArr[1 + index]))
-            .join(", ") +
-          `) === ` +
+            .join(color("white", "ansi") + ", ") +
+          color("white", "ansi") +
+          `)`
+          + color('rgb(82, 178, 238)', 'ansi') + ` === ` +
           renderTestNum(expected, formattingArr[0]) +
           (testCaseIndex + 1 === testCases.length ? "\n" : ""),
         () => expect(func(...args)).toBe(expected)
@@ -131,9 +139,12 @@ export const countBigintUsedBits = (
   bitSequence: bigint,
   /* Required to be power of 2 because this function uses binary search to count leading zeros */
   powerOf2ToGetAssumedBigIntSize: bigint = 6n
-) =>
-  2n ** powerOf2ToGetAssumedBigIntSize -
-  countBigintLeadingZeros(bitSequence, powerOf2ToGetAssumedBigIntSize);
+) => {
+  return (
+    2n ** powerOf2ToGetAssumedBigIntSize -
+    countBigintLeadingZeros(bitSequence, powerOf2ToGetAssumedBigIntSize)
+  );
+};
 
 // prettier-ignore
 testSuite(countBigintUsedBits)(
@@ -233,20 +244,3 @@ export function* genBigints(amountOfSlots: bigint, highestValueInSlot: bigint) {
   }
   yield* genBigintsInner(amountOfSlots);
 }
-
-// export function* getAllStringCombinations(
-//   stringLength: number,
-//   alphabet: string,
-
-//   stringPrefix: string = ""
-// ): Generator<string, void, unknown> {
-//   if (stringLength)
-//     for (const char of alphabet) {
-//       yield* getAllStringCombinations(
-//         stringLength - 1,
-//         alphabet,
-//         stringPrefix + char
-//       );
-//     }
-//   else yield stringPrefix;
-// }

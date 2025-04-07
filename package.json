@@ -14,6 +14,7 @@
   "dependencies": {
     "@total-typescript/ts-reset": "^0.5.1",
     "@types/node": "^20.14.2",
+    "chalk": "^5.4.1",
     "change-case": "^5.4.4",
     "graphology": "^0.26.0",
     "graphology-types": "^0.24.8",
