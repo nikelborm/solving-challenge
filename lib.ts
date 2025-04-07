@@ -1,5 +1,5 @@
+import { color } from "bun" with { type: "json" };
 import { expect, test } from "bun:test";
-import { color } from "bun" with { type: "macro" };
 
 // can be disable for performance
 const enableSafeGuards = true;
@@ -8,14 +8,15 @@ const renderTestNum = (e: any, pad?: { binary?: number; decimal?: number }) =>
   typeof e === "bigint" || typeof e === "number"
     ? ((ending) =>
         color("rgb(209, 167, 0)", "ansi") +
-      e.toString(10).padStart(pad?.decimal ?? 1, " ") +
+        e.toString(10).padStart(pad?.decimal ?? 1, " ") +
         color("rgb(251, 227, 133)", "ansi") +
         ending +
         color("gray", "ansi") +
         ` \\* 0b` +
         e.toString(2).padStart(pad?.binary ?? 1, "0") +
         ending +
-        ` *\\`+ color("white", "ansi"))(typeof e === "bigint" ? "n" : "")
+        ` *\\` +
+        color("white", "ansi"))(typeof e === "bigint" ? "n" : "")
     : e;
 
 const testSuite = <TArgs extends Array<any>, TReturn>(
@@ -76,8 +77,9 @@ const testSuite = <TArgs extends Array<any>, TReturn>(
             .map((e, index) => renderTestNum(e, formattingArr[1 + index]))
             .join(color("white", "ansi") + ", ") +
           color("white", "ansi") +
-          `)`
-          + color('rgb(82, 178, 238)', 'ansi') + ` === ` +
+          `)` +
+          color("rgb(82, 178, 238)", "ansi") +
+          ` === ` +
           renderTestNum(expected, formattingArr[0]) +
           (testCaseIndex + 1 === testCases.length ? "\n" : ""),
         () => expect(func(...args)).toBe(expected)
@@ -230,7 +232,7 @@ testSuite(getBigintSlotFromLeft)(
 );
 
 export function* genBigints(amountOfSlots: bigint, highestValueInSlot: bigint) {
-  const bitsPerSlot = countBigintUsedBits(highestValueInSlot);
+  const slotSizeInBits = countBigintUsedBits(highestValueInSlot);
 
   function* genBigintsInner(
     slotsLeft: bigint,
@@ -239,8 +241,52 @@ export function* genBigints(amountOfSlots: bigint, highestValueInSlot: bigint) {
   ): Generator<bigint, void, unknown> {
     if (slotsLeft)
       for (let i = 0n; i <= highestValueInSlot; i++)
-        yield* genBigintsInner(slotsLeft - 1n, (bitsPrefix << bitsPerSlot) + i);
+        yield* genBigintsInner(
+          slotsLeft - 1n,
+          (bitsPrefix << slotSizeInBits) + i
+        );
     else yield bitsPrefix;
   }
   yield* genBigintsInner(amountOfSlots);
 }
+
+export const withUpdatedSlotCountingFromRight = (
+  bitSequence: bigint,
+  slotIndexCountingFromRight: bigint,
+  highestValueInSlot: bigint,
+  newSlotContent: bigint
+) => {
+  const slotSizeInBits = countBigintUsedBits(highestValueInSlot);
+
+  if (enableSafeGuards) {
+    if (slotSizeInBits <= 0n)
+      throw new Error("Slot size in bits should be greater than 0!");
+
+    if (slotIndexCountingFromRight < 0n)
+      throw new Error("Slot index should not be less than 0!");
+  }
+
+  return (
+    (bitSequence &
+      ~(
+        ((1n << slotSizeInBits) - 1n) <<
+        (slotIndexCountingFromRight * slotSizeInBits)
+      )) |
+    (newSlotContent << (slotIndexCountingFromRight * slotSizeInBits))
+  );
+};
+
+// prettier-ignore
+testSuite(withUpdatedSlotCountingFromRight)(
+  /* expected             x                   slotIndexCountingFromRight highestValueInSlot newSlotContent */
+  [  0b0n,                0b0n,               0n,                        0b1n,              0b0n           ],
+  [  0b1n,                0b0n,               0n,                        0b1n,              0b1n           ],
+  [  0b0n,                0b1n,               0n,                        0b1n,              0b0n           ],
+  [  0b1n,                0b1n,               0n,                        0b1n,              0b1n           ],
+  [  0b101_010_101_000n,  0b101_010_101_010n, 0n,                        0b111n,            0b000n         ],
+  [  0b101_010_101_111n,  0b101_010_101_010n, 0n,                        0b111n,            0b111n         ],
+  [  0b101_010_000_010n,  0b101_010_101_010n, 1n,                        0b111n,            0b000n         ],
+  [  0b101_010_111_010n,  0b101_010_101_010n, 1n,                        0b111n,            0b111n         ],
+  [  0b101_000_101_010n,  0b101_010_101_010n, 2n,                        0b111n,            0b000n         ],
+  [  0b101_111_101_010n,  0b101_010_101_010n, 2n,                        0b111n,            0b111n         ],
+);
