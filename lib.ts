@@ -3,31 +3,87 @@ import { expect, test } from "bun:test";
 // can be disable for performance
 const enableSafeGuards = true;
 
-const renderTestNum = (e: any) =>
+const renderTestNum = (e: any, pad?: { binary?: number; decimal?: number }) =>
   typeof e === "bigint" || typeof e === "number"
-    ? (() => {
-        const ending = typeof e === "bigint" ? "n" : "";
-        return e + ending + ` \\* 0b` + e.toString(2) + ending + ` *\\`;
-      })()
+    ? ((ending) =>
+        e.toString(10).padStart(pad?.decimal ?? 1, " ") +
+        ending +
+        ` \\* 0b` +
+        e.toString(2).padStart(pad?.binary ?? 1, "0") +
+        ending +
+        ` *\\`)(typeof e === "bigint" ? "n" : "")
     : e;
 
-const customTest =
-  <TArgs extends Array<any>, TReturn>(func: (...args: TArgs) => TReturn) =>
-  (expected: TReturn, ...args: TArgs) =>
-    test(
-      func.name +
-        `(` +
-        args.map((e) => renderTestNum(e)).join(", ") +
-        `) === ` +
-        renderTestNum(expected),
-      () => expect(func(...args)).toBe(expected)
+const testSuite = <TArgs extends Array<any>, TReturn>(
+  func: (...args: TArgs) => TReturn
+) => {
+  return <const TestCasesArray extends Array<[expected: TReturn, ...TArgs]>>(
+    ...testCases: TestCasesArray
+  ) => {
+    if (!testCases.length)
+      throw new Error("testSuite should be provided with test cases");
+
+    const formattingArr = Array.from<
+      | {
+          binary: number;
+          decimal: number;
+        }
+      | undefined
+    >({
+      length: Math.max(...testCases.map((_) => _.length)),
+    });
+
+    for (
+      let testCaseParamIndex = 0;
+      testCaseParamIndex < testCases[0]!.length;
+      testCaseParamIndex++
+    ) {
+      const isThisParamANumber = testCases
+        .map((testCase) => typeof testCase[testCaseParamIndex])
+        .every((_) => _ === "number" || _ === "bigint");
+
+      if (!isThisParamANumber) continue;
+
+      formattingArr[testCaseParamIndex] = {
+        binary: Math.max(
+          ...testCases.map(
+            (testCase) =>
+              (testCase[testCaseParamIndex] as number | bigint).toString(2)
+                .length
+          )
+        ),
+        decimal: Math.max(
+          ...testCases.map(
+            (testCase) =>
+              (testCase[testCaseParamIndex] as number | bigint).toString(10)
+                .length
+          )
+        ),
+      };
+    }
+
+    testCases.forEach(([expected, ...args], testCaseIndex) =>
+      test(
+        func.name +
+          `(` +
+          args
+            .map((e, index) => renderTestNum(e, formattingArr[1 + index]))
+            .join(", ") +
+          `) === ` +
+          renderTestNum(expected, formattingArr[0]) +
+          (testCaseIndex + 1 === testCases.length ? "\n" : ""),
+        () => expect(func(...args)).toBe(expected)
+      )
     );
+  };
+};
 
-// TODO: check will it instead of manual bringing it to 8n work stable with inexact power of 2, like when assumedBigintSizeInBits === 5n
-
+// TODO: check will it instead of manual bringing it to 8n work stable with
+// inexact power of 2, like when assumedBigintSizeInBits === 5n
 export const countBigintLeadingZeros = (
   bitSequence: bigint,
-  powerOf2ToGetAssumedBigIntSize: bigint = 5n
+  /* Required to be power of 2 because this function uses binary search to count leading zeros */
+  powerOf2ToGetAssumedBigIntSize: bigint = 6n
 ) => {
   const assumedBigintSizeInBits = 2n ** powerOf2ToGetAssumedBigIntSize;
 
@@ -64,29 +120,27 @@ export const countBigintLeadingZeros = (
 };
 
 // prettier-ignore
-([
-  { expected: 0n, x: 0b1n,        powerOf2ToGetAssumedBigIntSize: 0n /* (2 ** 0n === 1n, which is the closest highest to 1 bit of length) */ },
-  { expected: 7n, x: 0b00000001n, powerOf2ToGetAssumedBigIntSize: 3n /* (2 ** 3n === 8n, which is the closest highest above 5 bits) */ },
-  { expected: 5n, x: 0b00000101n, powerOf2ToGetAssumedBigIntSize: 3n /* (2 ** 3n === 8n, which is the closest highest above 5 bits) */ },
-] as const).forEach(
-  _ => customTest(countBigintLeadingZeros)(_.expected, _.x, _.powerOf2ToGetAssumedBigIntSize)
+testSuite(countBigintLeadingZeros)(
+  /* expected x            powerOf2ToGetAssumedBigIntSize                             */
+  [  0n,      0b1n,        0n /* 2 ** 0n === 1n (represents 1 bit of length)       */ ],
+  [  7n,      0b00000001n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
+  [  5n,      0b00000101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
 );
 
 export const countBigintUsedBits = (
   bitSequence: bigint,
-  powerOf2ToGetAssumedBigIntSize: bigint = 64n
-  // alphabet: string
+  /* Required to be power of 2 because this function uses binary search to count leading zeros */
+  powerOf2ToGetAssumedBigIntSize: bigint = 6n
 ) =>
   2n ** powerOf2ToGetAssumedBigIntSize -
   countBigintLeadingZeros(bitSequence, powerOf2ToGetAssumedBigIntSize);
 
 // prettier-ignore
-([
-  { expected: 1n, x: 0b1n,     powerOf2ToGetAssumedBigIntSize: 0n /* (2 ** 0n === 1n, which is the closest highest to 1 bit of length) */ },
-  { expected: 1n, x: 0b00001n, powerOf2ToGetAssumedBigIntSize: 3n /* (2 ** 3n === 8n, which is the closest highest above 5 bits) */ },
-  { expected: 3n, x: 0b00101n, powerOf2ToGetAssumedBigIntSize: 3n /* (2 ** 3n === 8n, which is the closest highest above 5 bits) */ },
-] as const).forEach(
-  _ => customTest(countBigintUsedBits)(_.expected, _.x, _.powerOf2ToGetAssumedBigIntSize)
+testSuite(countBigintUsedBits)(
+  /* expected x         powerOf2ToGetAssumedBigIntSize                             */
+  [  1n,      0b1n,     0n /* 2 ** 0n === 1n (represents 1 bit of length)       */ ],
+  [  1n,      0b00001n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
+  [  3n,      0b00101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
 );
 
 const getBigintSlotFromRight = (
@@ -109,16 +163,15 @@ const getBigintSlotFromRight = (
 };
 
 // prettier-ignore
-([
-  { expected: 0b1n,   x: 0b1n,           slotIndex: 0n, slotSizeInBits: 1n },
-  { expected: 0b1n,   x: 0b1_0n,         slotIndex: 1n, slotSizeInBits: 1n },
-  { expected: 0b01n,  x: 0b01_10n,       slotIndex: 1n, slotSizeInBits: 2n },
-  { expected: 0b01n,  x: 0b01_10n,       slotIndex: 1n, slotSizeInBits: 2n },
-  { expected: 0b101n, x: 0b101_000_110n, slotIndex: 2n, slotSizeInBits: 3n },
-  { expected: 0b000n, x: 0b101_000_110n, slotIndex: 1n, slotSizeInBits: 3n },
-  { expected: 0b110n, x: 0b101_000_110n, slotIndex: 0n, slotSizeInBits: 3n },
-] as const).forEach(
-  _ => customTest(getBigintSlotFromRight)(_.expected, _.x, _.slotIndex, _.slotSizeInBits)
+testSuite(getBigintSlotFromRight)(
+  /* expected x               slotIndex slotSizeInBits */
+  [  0b1n,    0b1n,           0n,       1n             ],
+  [  0b1n,    0b1_0n,         1n,       1n             ],
+  [  0b01n,   0b01_10n,       1n,       2n             ],
+  [  0b01n,   0b01_10n,       1n,       2n             ],
+  [  0b101n,  0b101_000_110n, 2n,       3n             ],
+  [  0b000n,  0b101_000_110n, 1n,       3n             ],
+  [  0b110n,  0b101_000_110n, 0n,       3n             ],
 );
 
 export const getBigintSlotFromLeft = (
@@ -150,36 +203,33 @@ export const getBigintSlotFromLeft = (
 };
 
 // prettier-ignore
-([
-  { expected: 0b1n,   x: 0b1n, slotIndex: 0n, slotSizeInBits: 1n, assumedBigintSizeInBits: 1n },
+testSuite(getBigintSlotFromLeft)(
+  /* expected x                     slotIndex slotSizeInBits assumedBigintSizeInBits */
+  [  0b1n,    0b1n,                 0n,       1n,            1n                      ],
 
-  { expected: 0b1n,   x: 0b0_0_0_0_0_0_0_0_1n, slotIndex: 8n, slotSizeInBits: 1n, assumedBigintSizeInBits: 9n },
-  { expected: 0b1n,   x: 0b0_0_0_0_0_0_0_1_0n, slotIndex: 7n, slotSizeInBits: 1n, assumedBigintSizeInBits: 9n },
+  [  0b1n,    0b0_0_0_0_0_0_0_0_1n, 8n,       1n,            9n                      ],
+  [  0b1n,    0b0_0_0_0_0_0_0_1_0n, 7n,       1n,            9n                      ],
 
-  { expected: 0b01n,  x: 0b00_00_00_01_10n, slotIndex: 3n, slotSizeInBits: 2n, assumedBigintSizeInBits: 10n },
-  { expected: 0b01n,  x: 0b00_00_00_01_10n, slotIndex: 3n, slotSizeInBits: 2n, assumedBigintSizeInBits: 10n },
+  [  0b01n,   0b00_00_00_01_10n,    3n,       2n,            10n                     ],
+  [  0b01n,   0b00_00_00_01_10n,    3n,       2n,            10n                     ],
 
-  { expected: 0b101n, x: 0b101_000_110n, slotIndex: 0n, slotSizeInBits: 3n, assumedBigintSizeInBits: 9n },
-  { expected: 0b000n, x: 0b101_000_110n, slotIndex: 1n, slotSizeInBits: 3n, assumedBigintSizeInBits: 9n },
-  { expected: 0b110n, x: 0b101_000_110n, slotIndex: 2n, slotSizeInBits: 3n, assumedBigintSizeInBits: 9n },
-] as const).forEach(
-  _ => customTest(getBigintSlotFromLeft)(_.expected, _.x, _.slotIndex, _.slotSizeInBits, _.assumedBigintSizeInBits)
+  [  0b101n,  0b101_000_110n,       0n,       3n,            9n                      ],
+  [  0b000n,  0b101_000_110n,       1n,       3n,            9n                      ],
+  [  0b110n,  0b101_000_110n,       2n,       3n,            9n                      ],
 );
 
 export function* genBigints(amountOfSlots: bigint, highestValueInSlot: bigint) {
-  const bitsPerSlot: bigint =
-    countBigintUsedBits(highestValueInSlot); /* highestValueInSlot */
+  const bitsPerSlot = countBigintUsedBits(highestValueInSlot);
 
   function* genBigintsInner(
     slotsLeft: bigint,
 
     bitsPrefix: bigint = 0n
   ): Generator<bigint, void, unknown> {
-    if (slotsLeft) {
-      for (let i = 0n; i <= highestValueInSlot; i++) {
+    if (slotsLeft)
+      for (let i = 0n; i <= highestValueInSlot; i++)
         yield* genBigintsInner(slotsLeft - 1n, (bitsPrefix << bitsPerSlot) + i);
-      }
-    } else yield bitsPrefix;
+    else yield bitsPrefix;
   }
   yield* genBigintsInner(amountOfSlots);
 }
