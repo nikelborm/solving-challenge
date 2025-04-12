@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import {
   countBigintLeadingZeros,
   countBigintUsedBits,
+  isBitSequenceContainsAnotherBitSequence,
   getBigintSlotFromLeft,
   getBigintSlotFromRight,
   getBigintWithUpdatedSlotCountingFromRight,
@@ -149,6 +150,20 @@ testSuite(getBigintWithUpdatedSlotCountingFromRight)(
   [  0b101_010_111_010n,  0b101_010_101_010n, 1n,                        0b111n,            0b111n         ],
   [  0b101_000_101_010n,  0b101_010_101_010n, 2n,                        0b111n,            0b000n         ],
   [  0b101_111_101_010n,  0b101_010_101_010n, 2n,                        0b111n,            0b111n         ],
+);
+
+// prettier-ignore
+testSuite(isBitSequenceContainsAnotherBitSequence)(
+  /* expected superBitSequence subBitSequence slotSizeInBits superBitSequenceSizeInSlots subBitSequenceSizeInSlots */
+  [  true,    0b0n,            0b0n,          1n,            1n,                         1n                        ],
+  [  false,   0b0n,            0b1n,          1n,            1n,                         1n                        ],
+  [  false,   0b1n,            0b0n,          1n,            1n,                         1n                        ],
+  [  true,    0b1n,            0b1n,          1n,            1n,                         1n                        ],
+  [  true,    0b111_101_010n,  0b111n,        3n,            3n,                         1n                        ],
+  [  true,    0b111_101_010n,  0b101n,        3n,            3n,                         1n                        ],
+  [  true,    0b111_101_010n,  0b010n,        3n,            3n,                         1n                        ],
+  [  false,   0b111_101_010n,  0b000n,        3n,            3n,                         1n                        ],
+  [  false,   0b111_101_010n,  0b011n,        3n,            3n,                         1n                        ],
 );
 
 // TODO: add tests for errors

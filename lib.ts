@@ -11,10 +11,11 @@ export const countBigintLeadingZeros = (
   const assumedBigintSizeInBits = 1n << powerOf2ToGetAssumedBigIntSize;
 
   if (enableSafeGuards) {
-    //        1n                        0b1
-    if (1n << assumedBigintSizeInBits <= bitSequence)
+    const highestPossibleBitSequence = (1n << assumedBigintSizeInBits) - 1n;
+
+    if (highestPossibleBitSequence < bitSequence)
       throw new Error(
-        "Bit sequence is actually greater than assumedBigintSizeInBits"
+        "Bit sequence cannot be greater than assumed bigint size in bits"
       );
 
     if (assumedBigintSizeInBits < 1n)
@@ -52,9 +53,41 @@ export const countBigintUsedBits = (
   powerOf2ToGetAssumedBigIntSize: bigint = 6n
 ) => {
   return (
-    2n ** powerOf2ToGetAssumedBigIntSize -
+    (1n << powerOf2ToGetAssumedBigIntSize) -
     countBigintLeadingZeros(bitSequence, powerOf2ToGetAssumedBigIntSize)
   );
+};
+
+export const cutOutSlotsOfBitSequence = (
+  bitSequence: bigint,
+  slotsToCutOut: bigint,
+  slotSizeInBits: bigint
+) => {
+  if (enableSafeGuards) {
+    if (slotSizeInBits <= 0n)
+      throw new Error("Slot size in bits should be greater than 0!");
+
+    if (slotsToCutOut <= 0n)
+      throw new Error("slotsToCutOut should be greater than 0!");
+
+    if (bitSequence < 0n)
+      throw new Error("Negative bit sequences are not supported");
+  }
+
+  const bitSequenceMaskFilledWithOnes =
+    (1n << (slotsToCutOut * slotSizeInBits)) - 1n;
+
+  return (rightestIncludedSlotIndex: bigint) => {
+    if (enableSafeGuards) {
+      if (rightestIncludedSlotIndex < 0n)
+        throw new Error("Slot index should not be less than 0!");
+    }
+
+    return (
+      (bitSequence >> (rightestIncludedSlotIndex * slotSizeInBits)) &
+      bitSequenceMaskFilledWithOnes
+    );
+  };
 };
 
 export const getBigintSlotFromRight = (
@@ -62,21 +95,11 @@ export const getBigintSlotFromRight = (
   slotIndexCountingFromRight: bigint,
   slotSizeInBits: bigint
 ) => {
-  if (enableSafeGuards) {
-    if (slotSizeInBits <= 0n)
-      throw new Error("Slot size in bits should be greater than 0!");
-
-    if (slotIndexCountingFromRight < 0n)
-      throw new Error("Slot index should not be less than 0!");
-
-    if (bitSequence < 0n)
-      throw new Error("Negative bit sequences are not supported");
-  }
-
-  return (
-    (bitSequence >> (slotIndexCountingFromRight * slotSizeInBits)) &
-    ((1n << slotSizeInBits) - 1n)
-  );
+  return cutOutSlotsOfBitSequence(
+    bitSequence,
+    1n,
+    slotSizeInBits
+  )(slotIndexCountingFromRight);
 };
 
 export const getBigintSlotFromLeft = (
@@ -85,23 +108,30 @@ export const getBigintSlotFromLeft = (
   slotSizeInBits: bigint,
   assumedBigintSizeInBits: bigint
 ) => {
+  const maxSlotIndex = assumedBigintSizeInBits / slotSizeInBits - 1n;
+
+  const slotIndexCountingFromRight = maxSlotIndex - slotIndexCountingFromLeft;
+
   if (enableSafeGuards) {
     if (assumedBigintSizeInBits % slotSizeInBits !== 0n)
       throw new Error(
         "Assumed bigint size in bits should be a multiple of slot size"
       );
 
-    if (slotIndexCountingFromLeft >= assumedBigintSizeInBits)
+    if (slotIndexCountingFromRight < 0n)
+      throw new Error("Slot index from right should not be less than 0!");
+
+    if (slotIndexCountingFromRight > maxSlotIndex)
       throw new Error(
-        "Since slot index starts from zero it cannot be equal to bigint size. Also index couldn't be greater than that size."
+        "Slot index from right should be less than maxSlotIndex!"
       );
 
     if (slotIndexCountingFromLeft < 0n)
-      throw new Error("Slot index should not be less than 0!");
-  }
+      throw new Error("Slot index from left should not be less than 0!");
 
-  const slotIndexCountingFromRight =
-    assumedBigintSizeInBits / slotSizeInBits - slotIndexCountingFromLeft - 1n;
+    if (slotIndexCountingFromLeft > maxSlotIndex)
+      throw new Error("Slot index from left should be less than maxSlotIndex!");
+  }
 
   return getBigintSlotFromRight(
     bitSequence,
@@ -170,17 +200,68 @@ export const getBigintWithUpdatedSlotCountingFromRight = (
   const bitsToShiftToReachProperSlot =
     slotIndexCountingFromRight * slotSizeInBits;
 
-  const newSlotContentShiftedIntoProperSlotWithEmptyOthers =
-    newSlotContent << bitsToShiftToReachProperSlot;
-
   const targetSlotFilledWithOnesAndEverythingElseEmpty =
     ((1n << slotSizeInBits) - 1n) << bitsToShiftToReachProperSlot;
 
   const bitSequenceWithEmptyTargetSlot =
     bitSequence & ~targetSlotFilledWithOnesAndEverythingElseEmpty;
 
+  const newSlotContentShiftedIntoProperSlotWithEmptyOthers =
+    newSlotContent << bitsToShiftToReachProperSlot;
+
   return (
     bitSequenceWithEmptyTargetSlot |
     newSlotContentShiftedIntoProperSlotWithEmptyOthers
   );
+};
+
+export const isBitSequenceContainsAnotherBitSequence = (
+  superBitSequence: bigint,
+  subBitSequence: bigint,
+  slotSizeInBits: bigint,
+  superBitSequenceSizeInSlots: bigint,
+  subBitSequenceSizeInSlots: bigint
+) => {
+  if (enableSafeGuards) {
+    if (superBitSequence < 0n || subBitSequence < 0n)
+      throw new Error("Negative bit sequences are not supported");
+
+    if (superBitSequenceSizeInSlots <= 0n || subBitSequenceSizeInSlots <= 0n)
+      throw new Error("Bit sequence sizes cannot be less than 1 slot");
+
+    const maxSuperBitSequenceValue =
+      (1n << (superBitSequenceSizeInSlots * slotSizeInBits)) - 1n;
+
+    if (superBitSequence > maxSuperBitSequenceValue)
+      throw new Error(
+        "superBitSequence cannot be larger than according maximum possible value based on slot size"
+      );
+
+    const maxSubBitSequenceValue =
+      (1n << (subBitSequenceSizeInSlots * slotSizeInBits)) - 1n;
+
+    if (subBitSequence > maxSubBitSequenceValue)
+      throw new Error(
+        "subBitSequence cannot be larger than according maximum possible value based on slot size"
+      );
+
+    if (subBitSequenceSizeInSlots > superBitSequenceSizeInSlots)
+      throw new Error(
+        "subBitSequenceSizeInSlots cannot be larger than superBitSequenceSizeInSlots"
+      );
+  }
+
+  const maxSlotsToShift =
+    superBitSequenceSizeInSlots - subBitSequenceSizeInSlots;
+
+  const cutOutToTheLeftOf = cutOutSlotsOfBitSequence(
+    superBitSequence,
+    subBitSequenceSizeInSlots,
+    slotSizeInBits
+  );
+
+  for (let slotsToShift = 0n; slotsToShift <= maxSlotsToShift; slotsToShift++)
+    if (cutOutToTheLeftOf(slotsToShift) === subBitSequence) return true;
+
+  return false;
 };
