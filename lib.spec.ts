@@ -99,14 +99,16 @@ testSuite(countBigintLeadingZeros)(
   [  0n,      0b1n,        0n /* 2 ** 0n === 1n (represents 1 bit of length)       */ ],
   [  7n,      0b00000001n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
   [  5n,      0b00000101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
+  [  0n,      0b10000101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
 );
 
 // prettier-ignore
 testSuite(countBigintUsedBits)(
-  /* expected x         powerOf2ToGetAssumedBigIntSize                             */
-  [  1n,      0b1n,     0n /* 2 ** 0n === 1n (represents 1 bit of length)       */ ],
-  [  1n,      0b00001n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
-  [  3n,      0b00101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
+  /* expected x            powerOf2ToGetAssumedBigIntSize                             */
+  [  1n,      0b1n,        0n /* 2 ** 0n === 1n (represents 1 bit of length)       */ ],
+  [  1n,      0b00000001n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
+  [  3n,      0b00000101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
+  [  8n,      0b10000101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
 );
 
 // prettier-ignore

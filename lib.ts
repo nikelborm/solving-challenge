@@ -51,12 +51,9 @@ export const countBigintUsedBits = (
   bitSequence: bigint,
   /* Required to be power of 2 because this function uses binary search to count leading zeros */
   powerOf2ToGetAssumedBigIntSize: bigint = 6n
-) => {
-  return (
-    (1n << powerOf2ToGetAssumedBigIntSize) -
-    countBigintLeadingZeros(bitSequence, powerOf2ToGetAssumedBigIntSize)
-  );
-};
+) =>
+  (1n << powerOf2ToGetAssumedBigIntSize) -
+  countBigintLeadingZeros(bitSequence, powerOf2ToGetAssumedBigIntSize);
 
 export const cutOutSlotsOfBitSequence = (
   bitSequence: bigint,
@@ -94,13 +91,12 @@ export const getBigintSlotFromRight = (
   bitSequence: bigint,
   slotIndexCountingFromRight: bigint,
   slotSizeInBits: bigint
-) => {
-  return cutOutSlotsOfBitSequence(
+) =>
+  cutOutSlotsOfBitSequence(
     bitSequence,
     1n,
     slotSizeInBits
   )(slotIndexCountingFromRight);
-};
 
 export const getBigintSlotFromLeft = (
   bitSequence: bigint,
