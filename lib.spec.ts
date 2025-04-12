@@ -5,7 +5,7 @@ import {
   countBigintUsedBits,
   getBigintSlotFromLeft,
   getBigintSlotFromRight,
-  withUpdatedSlotCountingFromRight,
+  getBigintWithUpdatedSlotCountingFromRight,
 } from "lib.js";
 
 const renderTestNum = (e: any, pad?: { binary?: number; decimal?: number }) =>
@@ -137,7 +137,7 @@ testSuite(getBigintSlotFromLeft)(
 );
 
 // prettier-ignore
-testSuite(withUpdatedSlotCountingFromRight)(
+testSuite(getBigintWithUpdatedSlotCountingFromRight)(
   /* expected             x                   slotIndexCountingFromRight highestValueInSlot newSlotContent */
   [  0b0n,                0b0n,               0n,                        0b1n,              0b0n           ],
   [  0b1n,                0b0n,               0n,                        0b1n,              0b1n           ],
@@ -150,3 +150,5 @@ testSuite(withUpdatedSlotCountingFromRight)(
   [  0b101_000_101_010n,  0b101_010_101_010n, 2n,                        0b111n,            0b000n         ],
   [  0b101_111_101_010n,  0b101_010_101_010n, 2n,                        0b111n,            0b111n         ],
 );
+
+// TODO: add tests for errors

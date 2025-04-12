@@ -8,19 +8,23 @@ export const countBigintLeadingZeros = (
   /* Required to be power of 2 because this function uses binary search to count leading zeros */
   powerOf2ToGetAssumedBigIntSize: bigint = 6n
 ) => {
-  const assumedBigintSizeInBits = 2n ** powerOf2ToGetAssumedBigIntSize;
+  const assumedBigintSizeInBits = 1n << powerOf2ToGetAssumedBigIntSize;
 
   if (enableSafeGuards) {
     //        1n                        0b1
-    if (1n << assumedBigintSizeInBits < bitSequence)
+    if (1n << assumedBigintSizeInBits <= bitSequence)
       throw new Error(
         "Bit sequence is actually greater than assumedBigintSizeInBits"
       );
 
     if (assumedBigintSizeInBits < 1n)
       throw new Error("Assumed bigint size in bits should be greater than 0");
+
+    if (bitSequence < 0n)
+      throw new Error("Negative bit sequences are not supported");
   }
-  // extended version of https://stackoverflow.com/a/23857066
+
+  // Adapted version of https://stackoverflow.com/a/23857066
   // let n = 1n << (assumedBigintSizeInBits - 1n);
   let n = assumedBigintSizeInBits;
   let y = 0n;
@@ -64,6 +68,9 @@ export const getBigintSlotFromRight = (
 
     if (slotIndexCountingFromRight < 0n)
       throw new Error("Slot index should not be less than 0!");
+
+    if (bitSequence < 0n)
+      throw new Error("Negative bit sequences are not supported");
   }
 
   return (
@@ -93,9 +100,12 @@ export const getBigintSlotFromLeft = (
       throw new Error("Slot index should not be less than 0!");
   }
 
+  const slotIndexCountingFromRight =
+    assumedBigintSizeInBits / slotSizeInBits - slotIndexCountingFromLeft - 1n;
+
   return getBigintSlotFromRight(
     bitSequence,
-    assumedBigintSizeInBits / slotSizeInBits - slotIndexCountingFromLeft - 1n,
+    slotIndexCountingFromRight,
     slotSizeInBits
   );
 };
@@ -104,6 +114,9 @@ export function* genBigints(amountOfSlots: bigint, highestValueInSlot: bigint) {
   if (enableSafeGuards) {
     if (amountOfSlots < 1n)
       throw new Error("Amount of slots should be greater than 0!");
+
+    if (highestValueInSlot < 1n)
+      throw new Error("Highest value in slot should be greater than 0!");
   }
 
   const slotSizeInBits = countBigintUsedBits(highestValueInSlot);
@@ -114,17 +127,22 @@ export function* genBigints(amountOfSlots: bigint, highestValueInSlot: bigint) {
     bitsPrefix: bigint = 0n
   ): Generator<bigint, void, unknown> {
     if (slotsLeft)
-      for (let i = 0n; i <= highestValueInSlot; i++)
+      for (
+        let currentSlotValue = 0n;
+        currentSlotValue <= highestValueInSlot;
+        currentSlotValue++
+      )
         yield* genBigintsInner(
           slotsLeft - 1n,
-          (bitsPrefix << slotSizeInBits) + i
+          (bitsPrefix << slotSizeInBits) + currentSlotValue
         );
     else yield bitsPrefix;
   }
+
   yield* genBigintsInner(amountOfSlots);
 }
 
-export const withUpdatedSlotCountingFromRight = (
+export const getBigintWithUpdatedSlotCountingFromRight = (
   bitSequence: bigint,
   slotIndexCountingFromRight: bigint,
   highestValueInSlot: bigint,
@@ -138,14 +156,31 @@ export const withUpdatedSlotCountingFromRight = (
 
     if (slotIndexCountingFromRight < 0n)
       throw new Error("Slot index should not be less than 0!");
+
+    if (newSlotContent > highestValueInSlot)
+      throw new Error("Overflowing slots is not allowed!");
+
+    if (newSlotContent < 0n)
+      throw new Error("Negative values in slots are not allowed!");
+
+    if (highestValueInSlot < 1n)
+      throw new Error("Highest value in slot should be greater than 0!");
   }
 
+  const bitsToShiftToReachProperSlot =
+    slotIndexCountingFromRight * slotSizeInBits;
+
+  const newSlotContentShiftedIntoProperSlotWithEmptyOthers =
+    newSlotContent << bitsToShiftToReachProperSlot;
+
+  const targetSlotFilledWithOnesAndEverythingElseEmpty =
+    ((1n << slotSizeInBits) - 1n) << bitsToShiftToReachProperSlot;
+
+  const bitSequenceWithEmptyTargetSlot =
+    bitSequence & ~targetSlotFilledWithOnesAndEverythingElseEmpty;
+
   return (
-    (bitSequence &
-      ~(
-        ((1n << slotSizeInBits) - 1n) <<
-        (slotIndexCountingFromRight * slotSizeInBits)
-      )) |
-    (newSlotContent << (slotIndexCountingFromRight * slotSizeInBits))
+    bitSequenceWithEmptyTargetSlot |
+    newSlotContentShiftedIntoProperSlotWithEmptyOthers
   );
 };
