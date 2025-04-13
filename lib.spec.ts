@@ -9,6 +9,9 @@ import {
   getBigintWithUpdatedSlotCountingFromRight,
 } from "lib.js";
 
+// TODO: install https://extensions.gnome.org/extension/3396/color-picker/ and
+// steal the colors from vs code
+
 const renderTestNum = (e: any, pad?: { binary?: number; decimal?: number }) =>
   typeof e === "bigint" || typeof e === "number"
     ? ((ending) =>
@@ -85,6 +88,7 @@ const testSuite = <TArgs extends Array<any>, TReturn>(
           `)` +
           color("rgb(82, 178, 238)", "ansi") +
           ` === ` +
+          color("white", "ansi") +
           renderTestNum(expected, formattingArr[0]) +
           (testCaseIndex + 1 === testCases.length ? "\n" : ""),
         () => expect(func(...args)).toBe(expected)
