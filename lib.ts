@@ -59,46 +59,42 @@ export const countBigintUsedBits = (
 
 export const cutOutSlotsOfBitSequence = (
   bitSequence: bigint,
-  slotsToCutOut: bigint,
+  amountOfSlotsToCutOut: bigint,
   slotSizeInBits: bigint
 ) => {
   if (enableSafeGuards) {
     if (slotSizeInBits <= 0n)
       throw new Error("Slot size in bits should be greater than 0!");
 
-    if (slotsToCutOut <= 0n)
+    if (amountOfSlotsToCutOut <= 0n)
       throw new Error("slotsToCutOut should be greater than 0!");
 
     if (bitSequence < 0n)
       throw new Error("Negative bit sequences are not supported");
   }
 
-  const bitSequenceMaskFilledWithOnes =
-    (1n << (slotsToCutOut * slotSizeInBits)) - 1n;
+  const bitSequenceMaskFilledWithOnesToRemoveRemainsOnTheLeft =
+    (1n << (amountOfSlotsToCutOut * slotSizeInBits)) - 1n;
 
-  return (rightestIncludedSlotIndex: bigint) => {
+  return (amountOfSlotsSkippedFromTheRight: bigint) => {
     if (enableSafeGuards) {
-      if (rightestIncludedSlotIndex < 0n)
-        throw new Error("Slot index should not be less than 0!");
+      if (amountOfSlotsSkippedFromTheRight < 0n)
+        throw new Error(
+          "Amount of slots skipped from the right should not be less than 0!"
+        );
     }
 
     return (
-      (bitSequence >> (rightestIncludedSlotIndex * slotSizeInBits)) &
-      bitSequenceMaskFilledWithOnes
+      (bitSequence >> (amountOfSlotsSkippedFromTheRight * slotSizeInBits)) &
+      bitSequenceMaskFilledWithOnesToRemoveRemainsOnTheLeft
     );
   };
 };
 
 export const getBigintSlotFromRight = (
   bitSequence: bigint,
-  slotIndexCountingFromRight: bigint,
   slotSizeInBits: bigint
-) =>
-  cutOutSlotsOfBitSequence(
-    bitSequence,
-    1n,
-    slotSizeInBits
-  )(slotIndexCountingFromRight);
+) => cutOutSlotsOfBitSequence(bitSequence, 1n, slotSizeInBits);
 
 export const getBigintSlotFromLeft = (
   bitSequence: bigint,
@@ -133,9 +129,8 @@ export const getBigintSlotFromLeft = (
 
   return getBigintSlotFromRight(
     bitSequence,
-    slotIndexCountingFromRight,
     slotSizeInBits
-  );
+  )(slotIndexCountingFromRight);
 };
 
 export function* genBigints(
