@@ -7,7 +7,7 @@ import {
   getBigintSlotFromLeft,
   getBigintSlotFromRight as _getBigintSlotFromRight,
   getBigintWithUpdatedSlotCountingFromRight,
-} from "./lib_bigint.js";
+} from "./lib.js";
 
 const testSuite = <TArgs extends Array<any>, TReturn>(
   func: (...args: TArgs) => TReturn
@@ -28,10 +28,9 @@ const testSuite = <TArgs extends Array<any>, TReturn>(
 
   const renderValue = (e: any, pad?: { binary?: number; decimal?: number }) =>
     typeof e === "bigint" || typeof e === "number"
-      ? ((ending = typeof e === "bigint" ? "n" : "") =>
+      ? ((ending = typeof e === "bigint" ? nLetterOfBigintColor + "n" : "") =>
           numberPartOfBigintColor +
           e.toString(10).padStart(pad?.decimal ?? 1, " ") +
-          nLetterOfBigintColor +
           ending +
           commentColor +
           ` \\* 0b` +

@@ -1,4 +1,4 @@
-import { getAllStringCombinations } from "getAllCombinations_string.js";
+import { getAllStringCombinations } from "./getAllCombinations.js";
 
 function countMatchesStupidly(
   searchFor: string,
@@ -10,16 +10,15 @@ function countMatchesStupidly(
 
   let counter = 0;
 
-  for (const superString of getAllStringCombinations(
+  for (const superStringOriginal of getAllStringCombinations(
     superStringLength,
     alphabet
   )) {
-    if (
-      (isCaseSensitive ? superString.toLowerCase() : superString).includes(
-        subString
-      )
-    )
-      counter++;
+    const superString = isCaseSensitive
+      ? superStringOriginal.toLowerCase()
+      : superStringOriginal;
+
+    if (superString.includes(subString)) counter++;
   }
 
   return counter;
@@ -41,47 +40,40 @@ if (Bun.isMainThread) {
     worker: new Worker(import.meta.url),
   }));
 
-  for (const { workerIndex, worker } of workers) {
-    const batch = testCases
-      .filter((_, i) => i % amountOfWorkers === workerIndex)
-      .slice(-100, -10);
-
-    const data = {
-      batch,
+  for (const { workerIndex, worker } of workers)
+    worker.postMessage({
+      batch: testCases
+        .filter((_, i) => i % amountOfWorkers === workerIndex)
+        .slice(-100, -10), // 90 tasks before top 10 tasks
       workerIndex,
-    };
-
-    worker.postMessage(data);
-  }
+    });
 } else {
   console.log("I'm in a worker");
+
   self.addEventListener("message", async (event) => {
     const context = event.data;
 
-    const startNanosecs = Bun.nanoseconds();
+    const startNanoseconds = Bun.nanoseconds();
 
     console.log({
       workerIndex: context.workerIndex,
-      startNanosecs,
+      startNanoseconds,
     });
 
-    for (const testCase of context.batch) {
-      const { alphabet, isCaseSensitive, superStringLength, searchFor } =
-        testCase;
+    for (const testCase of context.batch)
       testCase.expectedResult = countMatchesStupidly(
-        searchFor,
-        superStringLength,
-        isCaseSensitive,
-        alphabet
+        testCase.searchFor,
+        testCase.superStringLength,
+        testCase.isCaseSensitive,
+        testCase.alphabet
       );
-    }
 
-    const finishNanosecs = Bun.nanoseconds();
+    const finishNanoseconds = Bun.nanoseconds();
 
     console.log({
       workerIndex: context.workerIndex,
-      finishNanosecs,
-      secsDiff: (finishNanosecs - startNanosecs) / 1_000_000_000,
+      finishNanoseconds,
+      secsDiff: (finishNanoseconds - startNanoseconds) / 1_000_000_000,
     });
 
     self.terminate();

@@ -1,4 +1,4 @@
-import { getAllStringCombinations } from "getAllCombinations_string.js";
+import { getAllStringCombinations } from "./getAllCombinations.js";
 import { writeFile } from "node:fs/promises";
 
 // amountOfCaseSensitiveCharactersInAlphabet: [0, ..., 26]

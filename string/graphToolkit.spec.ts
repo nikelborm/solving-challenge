@@ -1,7 +1,7 @@
 import {
   calculateSuccessAndFailureDistribution,
   doesMatch,
-} from "./graphToolkit_string.js";
+} from "./graphToolkit.js";
 import assert, { deepStrictEqual } from "node:assert";
 
 function assertMatches(param: string) {
