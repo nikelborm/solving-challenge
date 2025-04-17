@@ -7,7 +7,7 @@ import {
   getBigintSlotFromLeft,
   getBigintSlotFromRight,
   getBigintWithUpdatedSlotCountingFromRight,
-} from "lib.js";
+} from "./lib_bigint.js";
 
 // TODO: install https://extensions.gnome.org/extension/3396/color-picker/ and
 // steal the colors from vs code
@@ -116,7 +116,7 @@ testSuite(countBigintUsedBits)(
 );
 
 // prettier-ignore
-testSuite(getBigintSlotFromRight)(
+testSuite((a, b, c) => getBigintSlotFromRight(a, b)(c))(
   /* expected x               slotIndex slotSizeInBits */
   [  0b1n,    0b1n,           0n,       1n             ],
   [  0b1n,    0b1_0n,         1n,       1n             ],

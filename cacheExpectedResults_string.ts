@@ -1,4 +1,4 @@
-import { getAllStringCombinations } from "getAllStringCombinations.js";
+import { getAllStringCombinations } from "getAllCombinations_string.js";
 
 function countMatchesStupidly(
   searchFor: string,
