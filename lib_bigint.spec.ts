@@ -5,31 +5,43 @@ import {
   countBigintUsedBits,
   isBitSequenceContainsAnotherBitSequence,
   getBigintSlotFromLeft,
-  getBigintSlotFromRight,
+  getBigintSlotFromRight as _getBigintSlotFromRight,
   getBigintWithUpdatedSlotCountingFromRight,
 } from "./lib_bigint.js";
-
-// TODO: install https://extensions.gnome.org/extension/3396/color-picker/ and
-// steal the colors from vs code
-
-const renderTestNum = (e: any, pad?: { binary?: number; decimal?: number }) =>
-  typeof e === "bigint" || typeof e === "number"
-    ? ((ending) =>
-        color("rgb(209, 167, 0)", "ansi") +
-        e.toString(10).padStart(pad?.decimal ?? 1, " ") +
-        color("rgb(251, 227, 133)", "ansi") +
-        ending +
-        color("gray", "ansi") +
-        ` \\* 0b` +
-        e.toString(2).padStart(pad?.binary ?? 1, "0") +
-        ending +
-        ` *\\` +
-        color("white", "ansi"))(typeof e === "bigint" ? "n" : "")
-    : e;
 
 const testSuite = <TArgs extends Array<any>, TReturn>(
   func: (...args: TArgs) => TReturn
 ) => {
+  const methodColor = color("#52adf2", "ansi")!;
+  const operatorColor = color("#2bbac5", "ansi")!;
+
+  const syntaxColor = color("#d55fde", "ansi")!;
+  const parenthesisColor = color("#ffd700", "ansi")!;
+  const commaColor = color("white", "ansi")!;
+
+  const numberPartOfBigintColor = color("#d89650", "ansi")!;
+  const nLetterOfBigintColor = syntaxColor!;
+
+  const commentColor = color("#5c6370", "ansi")!;
+
+  const booleanColor = numberPartOfBigintColor;
+
+  const renderValue = (e: any, pad?: { binary?: number; decimal?: number }) =>
+    typeof e === "bigint" || typeof e === "number"
+      ? ((ending = typeof e === "bigint" ? "n" : "") =>
+          numberPartOfBigintColor +
+          e.toString(10).padStart(pad?.decimal ?? 1, " ") +
+          nLetterOfBigintColor +
+          ending +
+          commentColor +
+          ` \\* 0b` +
+          e.toString(2).padStart(pad?.binary ?? 1, "0") +
+          ending +
+          ` *\\`)()
+      : typeof e === "boolean"
+        ? booleanColor + e
+        : e;
+
   return <const TestCasesArray extends Array<[expected: TReturn, ...TArgs]>>(
     ...testCases: TestCasesArray
   ) => {
@@ -77,19 +89,19 @@ const testSuite = <TArgs extends Array<any>, TReturn>(
 
     testCases.forEach(([expected, ...args], testCaseIndex) =>
       test(
-        color("rgb(0, 140, 153)", "ansi") +
+        methodColor +
           func.name +
-          color("white", "ansi") +
+          parenthesisColor +
           `(` +
           args
-            .map((e, index) => renderTestNum(e, formattingArr[1 + index]))
-            .join(color("white", "ansi") + ", ") +
-          color("white", "ansi") +
+            .map((e, index) => renderValue(e, formattingArr[1 + index]))
+            .join(commaColor + ", ") +
+          parenthesisColor +
           `)` +
-          color("rgb(82, 178, 238)", "ansi") +
+          operatorColor +
           ` === ` +
           color("white", "ansi") +
-          renderTestNum(expected, formattingArr[0]) +
+          renderValue(expected, formattingArr[0]) +
           (testCaseIndex + 1 === testCases.length ? "\n" : ""),
         () => expect(func(...args)).toBe(expected)
       )
@@ -115,8 +127,18 @@ testSuite(countBigintUsedBits)(
   [  8n,      0b10000101n, 3n /* 2 ** 3n === 8n (the closest highest above 5 bits) */ ],
 );
 
+const getBigintSlotFromRight = (
+  bitSequence: bigint,
+  amountOfSlotsSkippedFromTheRight: bigint,
+  slotSizeInBits: bigint
+) =>
+  _getBigintSlotFromRight(
+    bitSequence,
+    slotSizeInBits
+  )(amountOfSlotsSkippedFromTheRight);
+
 // prettier-ignore
-testSuite((a, b, c) => getBigintSlotFromRight(a, b)(c))(
+testSuite(getBigintSlotFromRight)(
   /* expected x               slotIndex slotSizeInBits */
   [  0b1n,    0b1n,           0n,       1n             ],
   [  0b1n,    0b1_0n,         1n,       1n             ],
@@ -173,3 +195,4 @@ testSuite(isBitSequenceContainsAnotherBitSequence)(
 );
 
 // TODO: add tests for errors
+const as = true;

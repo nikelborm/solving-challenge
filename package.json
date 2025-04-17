@@ -5,7 +5,7 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
-    "test": "tsx watch --clear-screen ./test.ts"
+    "test": "bun test --watch ./lib_bigint.spec.ts"
   },
   "keywords": [],
   "author": "",
