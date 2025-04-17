@@ -1,12 +1,13 @@
 import { color } from "bun" with { type: "json" };
 import { expect, test } from "bun:test";
 import {
+  getBigintSlotFromRight as _getBigintSlotFromRight,
   countBigintLeadingZeros,
   countBigintUsedBits,
-  isBitSequenceContainsAnotherBitSequence,
   getBigintSlotFromLeft,
-  getBigintSlotFromRight as _getBigintSlotFromRight,
   getBigintWithUpdatedSlotCountingFromRight,
+  isBitSequenceContainsAnotherBitSequence,
+  isBitSequenceContainsAnotherBitSequenceWithCustomSlotComparison,
 } from "./lib.js";
 
 const testSuite = <TArgs extends Array<any>, TReturn>(
@@ -28,9 +29,10 @@ const testSuite = <TArgs extends Array<any>, TReturn>(
 
   const renderValue = (e: any, pad?: { binary?: number; decimal?: number }) =>
     typeof e === "bigint" || typeof e === "number"
-      ? ((ending = typeof e === "bigint" ? nLetterOfBigintColor + "n" : "") =>
+      ? ((ending = typeof e === "bigint" ? "n" : "") =>
           numberPartOfBigintColor +
           e.toString(10).padStart(pad?.decimal ?? 1, " ") +
+          nLetterOfBigintColor +
           ending +
           commentColor +
           ` \\* 0b` +
@@ -180,7 +182,7 @@ testSuite(getBigintWithUpdatedSlotCountingFromRight)(
 );
 
 // prettier-ignore
-testSuite(isBitSequenceContainsAnotherBitSequence)(
+const testCasesForCheckingBitSequenceContainsAnotherBitSequence = [
   /* expected superBitSequence subBitSequence slotSizeInBits superBitSequenceSizeInSlots subBitSequenceSizeInSlots */
   [  true,    0b0n,            0b0n,          1n,            1n,                         1n                        ],
   [  false,   0b0n,            0b1n,          1n,            1n,                         1n                        ],
@@ -191,7 +193,14 @@ testSuite(isBitSequenceContainsAnotherBitSequence)(
   [  true,    0b111_101_010n,  0b010n,        3n,            3n,                         1n                        ],
   [  false,   0b111_101_010n,  0b000n,        3n,            3n,                         1n                        ],
   [  false,   0b111_101_010n,  0b011n,        3n,            3n,                         1n                        ],
+] as const satisfies any[][];
+
+testSuite(isBitSequenceContainsAnotherBitSequenceWithCustomSlotComparison)(
+  ...testCasesForCheckingBitSequenceContainsAnotherBitSequence
+);
+
+testSuite(isBitSequenceContainsAnotherBitSequence)(
+  ...testCasesForCheckingBitSequenceContainsAnotherBitSequence
 );
 
 // TODO: add tests for errors
-const as = true;

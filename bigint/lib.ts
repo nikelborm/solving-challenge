@@ -222,18 +222,21 @@ export const isBitSequenceContainsAnotherBitSequence = (
   superBitSequence: bigint,
   subBitSequence: bigint,
   slotSizeInBits: bigint,
-  superBitSequenceSizeInSlots: bigint,
-  subBitSequenceSizeInSlots: bigint
+  sizeOfSuperBitSequenceInSlots: bigint,
+  sizeOfSubBitSequenceInSlots: bigint
 ) => {
   if (enableSafeGuards) {
     if (superBitSequence < 0n || subBitSequence < 0n)
       throw new Error("Negative bit sequences are not supported");
 
-    if (superBitSequenceSizeInSlots <= 0n || subBitSequenceSizeInSlots <= 0n)
+    if (
+      sizeOfSuperBitSequenceInSlots <= 0n ||
+      sizeOfSubBitSequenceInSlots <= 0n
+    )
       throw new Error("Bit sequence sizes cannot be less than 1 slot");
 
     const maxSuperBitSequenceValue =
-      (1n << (superBitSequenceSizeInSlots * slotSizeInBits)) - 1n;
+      (1n << (sizeOfSuperBitSequenceInSlots * slotSizeInBits)) - 1n;
 
     // TODO обновить проверку с учётом того что в каждом слоте может быть не
     // больше максимального значения для слота, а не просто 1111
@@ -243,7 +246,7 @@ export const isBitSequenceContainsAnotherBitSequence = (
       );
 
     const maxSubBitSequenceValue =
-      (1n << (subBitSequenceSizeInSlots * slotSizeInBits)) - 1n;
+      (1n << (sizeOfSubBitSequenceInSlots * slotSizeInBits)) - 1n;
 
     // TODO обновить проверку с учётом того что в каждом слоте может быть не
     // больше максимального значения для слота, а не просто 1111
@@ -252,23 +255,114 @@ export const isBitSequenceContainsAnotherBitSequence = (
         "subBitSequence cannot be larger than according maximum possible value based on slot size"
       );
 
-    if (subBitSequenceSizeInSlots > superBitSequenceSizeInSlots)
+    if (sizeOfSubBitSequenceInSlots > sizeOfSuperBitSequenceInSlots)
       throw new Error(
         "subBitSequenceSizeInSlots cannot be larger than superBitSequenceSizeInSlots"
       );
   }
 
   const maxSlotsToShift =
-    superBitSequenceSizeInSlots - subBitSequenceSizeInSlots;
+    sizeOfSuperBitSequenceInSlots - sizeOfSubBitSequenceInSlots;
 
-  const cutOutNslotsToTheLeftOf = cutOutSlotsOfBitSequence(
+  const cutOutFewSlotsOfSuperBitSequence = cutOutSlotsOfBitSequence(
     superBitSequence,
-    subBitSequenceSizeInSlots,
+    sizeOfSubBitSequenceInSlots,
     slotSizeInBits
   );
 
-  for (let slotsToShift = 0n; slotsToShift <= maxSlotsToShift; slotsToShift++)
-    if (cutOutNslotsToTheLeftOf(slotsToShift) === subBitSequence) return true;
+  for (
+    let amountOfSlotsSkippedFromTheRight = 0n;
+    amountOfSlotsSkippedFromTheRight <= maxSlotsToShift;
+    amountOfSlotsSkippedFromTheRight++
+  )
+    if (
+      cutOutFewSlotsOfSuperBitSequence(amountOfSlotsSkippedFromTheRight) ===
+      subBitSequence
+    )
+      return true;
+
+  return false;
+};
+
+export const isBitSequenceContainsAnotherBitSequenceWithCustomSlotComparison = (
+  superBitSequence: bigint,
+  subBitSequence: bigint,
+  slotSizeInBits: bigint,
+  sizeOfSuperBitSequenceInSlots: bigint,
+  sizeOfSubBitSequenceInSlots: bigint,
+  areSlotsEqual: (a: bigint, b: bigint) => boolean = (a, b) => a === b
+) => {
+  if (enableSafeGuards) {
+    if (superBitSequence < 0n || subBitSequence < 0n)
+      throw new Error("Negative bit sequences are not supported");
+
+    if (
+      sizeOfSuperBitSequenceInSlots <= 0n ||
+      sizeOfSubBitSequenceInSlots <= 0n
+    )
+      throw new Error("Bit sequence sizes cannot be less than 1 slot");
+
+    const maxSuperBitSequenceValue =
+      (1n << (sizeOfSuperBitSequenceInSlots * slotSizeInBits)) - 1n;
+
+    // TODO обновить проверку с учётом того что в каждом слоте может быть не
+    // больше максимального значения для слота, а не просто 1111
+    if (superBitSequence > maxSuperBitSequenceValue)
+      throw new Error(
+        "superBitSequence cannot be larger than according maximum possible value based on slot size"
+      );
+
+    const maxSubBitSequenceValue =
+      (1n << (sizeOfSubBitSequenceInSlots * slotSizeInBits)) - 1n;
+
+    // TODO обновить проверку с учётом того что в каждом слоте может быть не
+    // больше максимального значения для слота, а не просто 1111
+    if (subBitSequence > maxSubBitSequenceValue)
+      throw new Error(
+        "subBitSequence cannot be larger than according maximum possible value based on slot size"
+      );
+
+    if (sizeOfSubBitSequenceInSlots > sizeOfSuperBitSequenceInSlots)
+      throw new Error(
+        "subBitSequenceSizeInSlots cannot be larger than superBitSequenceSizeInSlots"
+      );
+  }
+
+  const maxSlotsToShift =
+    sizeOfSuperBitSequenceInSlots - sizeOfSubBitSequenceInSlots;
+
+  const getBigintSlotFromRightOfSuperBitSequence = getBigintSlotFromRight(
+    superBitSequence,
+    slotSizeInBits
+  );
+
+  const getBigintSlotFromRightOfSubBitSequence = getBigintSlotFromRight(
+    subBitSequence,
+    slotSizeInBits
+  );
+
+  fittingSubStringLoop: for (
+    let amountOfSlotsSkippedFromTheRight = 0n;
+    amountOfSlotsSkippedFromTheRight <= maxSlotsToShift;
+    amountOfSlotsSkippedFromTheRight++
+  ) {
+    for (
+      let slotIndexOfSubBitSequence = 0n;
+      slotIndexOfSubBitSequence < sizeOfSubBitSequenceInSlots;
+      slotIndexOfSubBitSequence++
+    )
+      if (
+        !areSlotsEqual(
+          getBigintSlotFromRightOfSuperBitSequence(
+            amountOfSlotsSkippedFromTheRight + slotIndexOfSubBitSequence
+          ),
+          getBigintSlotFromRightOfSubBitSequence(slotIndexOfSubBitSequence)
+        )
+      )
+        continue fittingSubStringLoop;
+
+    return true;
+  }
 
   return false;
 };
