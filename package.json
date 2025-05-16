@@ -18,6 +18,7 @@
     "change-case": "^5.4.4",
     "graphology": "^0.26.0",
     "graphology-types": "^0.24.8",
+    "outdent": "^0.8.0",
     "prettier": "^3.5.3",
     "ts-toolbelt": "^9.6.0",
     "tsafe": "^1.8.5",
